@@ -25,6 +25,7 @@ var baseURL string = "https://www.indeed.com/jobs?q=python&limit=50"
 func main() {
 	var jobs []extractedJob
 	c := make(chan []extractedJob)
+	writeC := make(chan string)
 	totalPages := getPages()
 
 	for i := 0; i < totalPages; i++ {
@@ -36,7 +37,11 @@ func main() {
 		jobs = append(jobs, extractedjobs...)
 	}
 
-	writeJobs(jobs)
+	go writeJobs(jobs, writeC)
+
+	done := <-writeC
+	_ = done
+
 	fmt.Println("extracted " + strconv.Itoa(len(jobs)) + " jobs")
 }
 
@@ -102,7 +107,7 @@ func getPages() int {
 	return pages
 }
 
-func writeJobs(jobs []extractedJob) {
+func writeJobs(jobs []extractedJob, c chan<- string) {
 	file, err := os.Create("jobs.csv")
 	checkErr(err)
 
@@ -119,6 +124,8 @@ func writeJobs(jobs []extractedJob) {
 		jwErr := w.Write(jobSlice)
 		checkErr(jwErr)
 	}
+
+	c <- "done"
 }
 
 func checkErr(err error) {
